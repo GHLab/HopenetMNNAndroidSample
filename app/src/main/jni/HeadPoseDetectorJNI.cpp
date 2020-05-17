@@ -4,9 +4,19 @@
 
 #include <chrono>
 
+#include <android/asset_manager_jni.h>
 #include <android/bitmap.h>
 #include <android/log.h>
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, "HeadPoseDetector", __VA_ARGS__)
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_ghlab_mnnsample_jni_HeadPoseDetectorJNI_setModel(JNIEnv *env, jobject instance, jobject byteBuffer) {
+    void *bytes = env->GetDirectBufferAddress(byteBuffer);
+    jlong size = env->GetDirectBufferCapacity(byteBuffer);
+
+    HeadPoseDetector::instance()->init((const unsigned char*)bytes, size);
+}
 
 extern "C"
 JNIEXPORT jobject JNICALL

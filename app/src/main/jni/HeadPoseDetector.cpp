@@ -1,8 +1,5 @@
 #include "HeadPoseDetector.hpp"
 
-#include "mnn_mems/hopenet_lite.mnn.h"
-#include "mnn_mems/hopenet_lite_quantized.mnn.h"
-
 #include <MNN/expr/Expr.hpp>
 #include <MNN/expr/ExprCreator.hpp>
 #include <iostream>
@@ -11,7 +8,7 @@
 #include <android/log.h>
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, "HeadPoseDetector", __VA_ARGS__)
 
-#define kInputSize 224
+#define kInputSize 128
 #define kOutputSize 66
 
 using namespace MNN::Express;
@@ -25,6 +22,22 @@ HeadPoseDetector::~HeadPoseDetector()
 {
     m_interpreter->releaseModel();
     m_interpreter->releaseSession(m_session);
+}
+
+void HeadPoseDetector::init(const unsigned char *modelData, const int size)
+{
+    m_interpreter = std::shared_ptr<MNN::Interpreter>(MNN::Interpreter::createFromBuffer(modelData, size));
+
+    MNN::ScheduleConfig config;
+    config.numThread = 2;
+    config.type = MNN_FORWARD_CPU;
+    MNN::BackendConfig backendConfig;
+    backendConfig.precision = MNN::BackendConfig::PrecisionMode::Precision_Low;
+    config.backendConfig = &backendConfig;
+
+    m_session = m_interpreter->createSession(config);
+
+    m_tensor = m_interpreter->getSessionInput(m_session, nullptr);
 }
 
 bool HeadPoseDetector::detect(const unsigned char *data, const int width, const int height, const int stride, const int format, const int rotation, /*out*/double &yaw, /*out*/double &pitch, /*out*/double &roll)
@@ -48,20 +61,31 @@ bool HeadPoseDetector::detect(const unsigned char *data, const int width, const 
 
     trans.postScale(kInputSize, kInputSize);
     trans.invert(&trans);
-    
+
     pretreat->setMatrix(trans);
     pretreat->convert(data, width, height, stride, m_tensor);
-    
+
     m_interpreter->runSession(m_session);
-    
-    const MNN::Tensor *yawTensor = m_interpreter->getSessionOutput(m_session, "616");
-    const MNN::Tensor *pitchTensor = m_interpreter->getSessionOutput(m_session, "617");
-    const MNN::Tensor *rollTensor = m_interpreter->getSessionOutput(m_session, "618");
+
+    // hopenet_lite / hopenet_lite_fp16
+//    const MNN::Tensor *yawTensor = m_interpreter->getSessionOutput(m_session, "616");
+//    const MNN::Tensor *pitchTensor = m_interpreter->getSessionOutput(m_session, "617");
+//    const MNN::Tensor *rollTensor = m_interpreter->getSessionOutput(m_session, "618");
+
+    // hopenet_lite_mobilenetv2
+//    const MNN::Tensor *yawTensor = m_interpreter->getSessionOutput(m_session, "477");
+//    const MNN::Tensor *pitchTensor = m_interpreter->getSessionOutput(m_session, "478");
+//    const MNN::Tensor *rollTensor = m_interpreter->getSessionOutput(m_session, "479");
+
+    // hopenet_lite_mobilenetv3_0_75
+    const MNN::Tensor *yawTensor = m_interpreter->getSessionOutput(m_session, "708");
+    const MNN::Tensor *pitchTensor = m_interpreter->getSessionOutput(m_session, "716");
+    const MNN::Tensor *rollTensor = m_interpreter->getSessionOutput(m_session, "724");
 
     yaw = __calcPoseValue(yawTensor);
     pitch = __calcPoseValue(pitchTensor);
     roll = rotation - __calcPoseValue(rollTensor);
-    
+
     return true;
 }
 
@@ -69,28 +93,28 @@ void HeadPoseDetector::useQuantizedModel(bool quantized)
 {
     LOGD("useQuantizedModel : %d", quantized);
 
-    if (m_interpreter != nullptr)
-    {
-        m_interpreter->releaseModel();
-        m_interpreter->releaseSession(m_session);
-        m_interpreter.reset();
-    }
-
-    if (quantized)
-        m_interpreter = std::shared_ptr<MNN::Interpreter>(MNN::Interpreter::createFromBuffer(hopenet_lite_quantized_mnn, sizeof(hopenet_lite_quantized_mnn)));
-    else
-        m_interpreter = std::shared_ptr<MNN::Interpreter>(MNN::Interpreter::createFromBuffer(hopenet_lite_mnn, sizeof(hopenet_lite_mnn)));
-
-    MNN::ScheduleConfig config;
-    config.numThread = 1;
-    config.type = MNN_FORWARD_CPU;
-    MNN::BackendConfig backendConfig;
-    backendConfig.precision = MNN::BackendConfig::PrecisionMode::Precision_Low;
-    config.backendConfig = &backendConfig;
-
-    m_session = m_interpreter->createSession(config);
-
-    m_tensor = m_interpreter->getSessionInput(m_session, nullptr);
+//    if (m_interpreter != nullptr)
+//    {
+//        m_interpreter->releaseModel();
+//        m_interpreter->releaseSession(m_session);
+//        m_interpreter.reset();
+//    }
+//
+//    if (quantized)
+//        m_interpreter = std::shared_ptr<MNN::Interpreter>(MNN::Interpreter::createFromBuffer(hopenet_lite_quantized_mnn, sizeof(hopenet_lite_quantized_mnn)));
+//    else
+//        m_interpreter = std::shared_ptr<MNN::Interpreter>(MNN::Interpreter::createFromBuffer(hopenet_lite_mnn, sizeof(hopenet_lite_mnn)));
+//
+//    MNN::ScheduleConfig config;
+//    config.numThread = 1;
+//    config.type = MNN_FORWARD_CPU;
+//    MNN::BackendConfig backendConfig;
+//    backendConfig.precision = MNN::BackendConfig::PrecisionMode::Precision_Low;
+//    config.backendConfig = &backendConfig;
+//
+//    m_session = m_interpreter->createSession(config);
+//
+//    m_tensor = m_interpreter->getSessionInput(m_session, nullptr);
 }
 
 double HeadPoseDetector::__calcPoseValue(const MNN::Tensor *tensor)

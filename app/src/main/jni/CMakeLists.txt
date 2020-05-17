@@ -75,7 +75,7 @@ target_link_libraries( # Specifies the target library.
         lib_mnn_exp
         lib_mnn_cl
         lib_mnn_vulkan
-        -ljnigraphics
+        jnigraphics
 
         # Links the target library to the log library
         # included in the NDK.

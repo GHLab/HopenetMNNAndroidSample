@@ -24,6 +24,7 @@ private:
     HeadPoseDetector();
     
 public:
+    void init(const unsigned char *modelData, const int size);
     bool detect(const unsigned char *data, const int width, const int height, const int stride, const int format, const int rotation, /*out*/double &yaw, /*out*/double &pitch, /*out*/double &roll);
     void useQuantizedModel(bool quantized);
 

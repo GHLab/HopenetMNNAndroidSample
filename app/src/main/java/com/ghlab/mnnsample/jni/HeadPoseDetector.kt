@@ -1,7 +1,9 @@
 package com.ghlab.mnnsample.jni
 
 import android.content.Context
+import android.content.res.AssetManager
 import android.graphics.Bitmap
+import java.nio.ByteBuffer
 
 enum class ImageFormat(val value: Int) {
     RGBA(0),
@@ -25,6 +27,10 @@ class HeadPoseDetector(context: Context) {
     init {
         this.context = context
         System.loadLibrary("MNNSampleLib")
+
+        //HeadPoseDetectorJNI.setModel(loadModelFile(context, "hopenet_lite_fp16.mnn"))
+        //HeadPoseDetectorJNI.setModel(loadModelFile(context, "hopenet_lite_shuff_0_5.mnn"))
+        HeadPoseDetectorJNI.setModel(loadModelFile(context, "hopenet_lite_mobilenetv3_0_75.mnn"))
     }
 
     fun detectHeadPose(bitmap: Bitmap, format: ImageFormat = ImageFormat.RGBA, rotation: RotateFlags = RotateFlags.ROTATE_0): HeadPoseResult? {
@@ -33,5 +39,13 @@ class HeadPoseDetector(context: Context) {
 
     fun useQuantizedModel(quantized: Boolean) {
         HeadPoseDetectorJNI.useQuantizedModel(quantized)
+    }
+
+    private fun loadModelFile(context: Context, assetFileName: String): ByteBuffer {
+        val inputStream = context.assets.open(assetFileName, AssetManager.ACCESS_BUFFER)
+        val bytes = inputStream.readBytes()
+        val byteBuffer = ByteBuffer.allocateDirect(bytes.size)
+        byteBuffer.put(bytes)
+        return byteBuffer
     }
 }
